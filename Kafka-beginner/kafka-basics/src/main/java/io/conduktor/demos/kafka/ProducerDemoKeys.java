@@ -21,7 +21,7 @@ public class ProducerDemoKeys {
         Properties properties = new Properties();
 
         // Connect to local server
-        // properties.setProperty("bootstrap.servers", "127.0.1:9092");
+        // properties.setProperty("bootstrap.servers", "107.0.0.1:9092");
 
         // Connect to Conduktor
         properties.setProperty("security.protocol", "SASL_SSL");
