@@ -29,7 +29,7 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.Properties;
 
-public class OpensearchConsumer {
+public class OpensearchConsumerManualOffsetCommitment {
 
     // Connect to OpenSearch database
     public static RestHighLevelClient createOpenSearchClient() {
@@ -94,7 +94,7 @@ public class OpensearchConsumer {
 
     public static void main(String[] args) throws IOException {
 
-        Logger log = LoggerFactory.getLogger(OpensearchConsumer.class.getSimpleName());
+        Logger log = LoggerFactory.getLogger(OpensearchConsumerManualOffsetCommitment.class.getSimpleName());
 
         // Create Opensource client
         RestHighLevelClient openSearchClient = createOpenSearchClient();

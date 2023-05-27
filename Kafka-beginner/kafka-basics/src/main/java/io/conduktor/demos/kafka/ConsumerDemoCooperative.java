@@ -26,9 +26,6 @@ public class ConsumerDemoCooperative {
         // Create Consumer Properties
         Properties properties = new Properties();
 
-        // Connect to local server
-        // properties.setProperty("bootstrap.servers", "127.0.1:9092");
-
         // Connect to Conduktor
         properties.setProperty("security.protocol", "SASL_SSL");
         properties.setProperty("sasl.jaas.config", "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"2kspA17d4L6AgF0Cn9h02j\" password=\"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwczovL2F1dGguY29uZHVrdG9yLmlvIiwic291cmNlQXBwbGljYXRpb24iOiJhZG1pbiIsInVzZXJNYWlsIjpudWxsLCJwYXlsb2FkIjp7InZhbGlkRm9yVXNlcm5hbWUiOiIya3NwQTE3ZDRMNkFnRjBDbjloMDJqIiwib3JnYW5pemF0aW9uSWQiOjczMzgzLCJ1c2VySWQiOjg1MzI4LCJmb3JFeHBpcmF0aW9uQ2hlY2siOiJkNTMzYTc2Zi1kZGY3LTQ2YjItOTA1NC00YTk2NWYxNjdkN2QifX0.D3WIi0xyyBnZaYOQvOrGMuHIan6xmKpPJTa1Rve5tqk\";");
