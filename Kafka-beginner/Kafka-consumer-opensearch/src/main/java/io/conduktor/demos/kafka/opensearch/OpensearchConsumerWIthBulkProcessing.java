@@ -7,8 +7,14 @@ import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.DefaultConnectionKeepAliveStrategy;
-import org.apache.kafka.clients.consumer.*;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.common.errors.WakeupException;
 import org.apache.kafka.common.serialization.StringDeserializer;
+import org.opensearch.action.bulk.BulkRequest;
+import org.opensearch.action.bulk.BulkResponse;
 import org.opensearch.action.index.IndexRequest;
 import org.opensearch.action.index.IndexResponse;
 import org.opensearch.client.RequestOptions;
@@ -26,7 +32,7 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.Properties;
 
-public class OpensearchConsumerManualOffsetCommitment {
+public class OpensearchConsumerWIthBulkProcessing {
 
     // Connect to OpenSearch database
     public static RestHighLevelClient createOpenSearchClient() {
@@ -79,9 +85,6 @@ public class OpensearchConsumerManualOffsetCommitment {
         properties.setProperty("group.id", groupId);
         properties.setProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest");
 
-        // By setting this to false, consumer will not automatically commit offsets
-        properties.setProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
-
         return new KafkaConsumer<String, String>(properties);
     }
 
@@ -94,7 +97,7 @@ public class OpensearchConsumerManualOffsetCommitment {
 
     public static void main(String[] args) throws IOException {
 
-        Logger log = LoggerFactory.getLogger(OpensearchConsumerManualOffsetCommitment.class.getSimpleName());
+        Logger log = LoggerFactory.getLogger(OpensearchConsumerWIthBulkProcessing.class.getSimpleName());
 
         // Create Opensource client
         RestHighLevelClient openSearchClient = createOpenSearchClient();
@@ -118,40 +121,73 @@ public class OpensearchConsumerManualOffsetCommitment {
             // subscribe to topics
             consumer.subscribe(Collections.singleton("wikimedia.recentchange"));
 
-            while(true){
+            while(true) {
+
                 ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(3000));
 
                 int recordCount = records.count();
-                log.info("Received " + recordCount + " records");
+                log.info("Received " + recordCount + " record(s)");
 
-                // Send the record to OpenSearch
+                BulkRequest bulkRequest = new BulkRequest();
 
-                for (ConsumerRecord<String, String> record: records){
-                    // Create id Strategy 1: Using Kafka record coordinates
-                    //String id = record.topic() + "_" +  record.partition() +  "_" + record.offset();
+                for (ConsumerRecord<String, String> record : records) {
 
-                    // Strategy 2: extract id from json file
-                    String id = extractId(record.value());
+                    // send the record into OpenSearch
 
-                    try{
-                        // Send the record in to opensearch
+                    // strategy 1
+                    // define an ID using Kafka Record coordinates
+//                    String id = record.topic() + "_" + record.partition() + "_" + record.offset();
+
+                    try {
+                        // strategy 2
+                        // we extract the ID from the JSON value
+                        String id = extractId(record.value());
+
                         IndexRequest indexRequest = new IndexRequest("wikimedia")
                                 .source(record.value(), XContentType.JSON)
                                 .id(id);
 
-                        IndexResponse indexResponse = openSearchClient.index(indexRequest, RequestOptions.DEFAULT);
-                        log.info(indexResponse.getId());
-                    } catch(Exception e){
+//                        IndexResponse response = openSearchClient.index(indexRequest, RequestOptions.DEFAULT);
+
+                        bulkRequest.add(indexRequest);
+
+//                        log.info(response.getId());
+                    } catch (Exception e){
 
                     }
+
                 }
 
-                // Manual offset commitment after batch processing is done
-                consumer.commitAsync();
-                log.info("Offset has been committed.");
+
+                if (bulkRequest.numberOfActions() > 0){
+                    BulkResponse bulkResponse = openSearchClient.bulk(bulkRequest, RequestOptions.DEFAULT);
+                    log.info("Inserted " + bulkResponse.getItems().length + " record(s).");
+
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+
+                    // commit offsets after the batch is consumed
+                    consumer.commitSync();
+                    log.info("Offsets have been committed!");
+                }
+
+
+
 
             }
 
+
+        } catch (WakeupException e) {
+            log.info("Consumer is starting to shut down");
+        } catch (Exception e) {
+            log.error("Unexpected exception in the consumer", e);
+        } finally {
+            consumer.close(); // close the consumer, this will also commit offsets
+            openSearchClient.close();
+            log.info("The consumer is now gracefully shut down");
         }
 
     }
